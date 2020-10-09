@@ -5,6 +5,6 @@ fn main() {
     let dst = cmake::Config::new(&metis_dir)
         .define("GKLIB_PATH", metis_dir.join("GKlib"))
         .build();
-    println!("cargo:rustc-link-search=native={}", dst.display());
+    println!("cargo:rustc-link-search={}", dst.join("lib").display());
     println!("cargo:rustc-link-lib=static=metis");
 }
