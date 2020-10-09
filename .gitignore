@@ -53,3 +53,7 @@ dkms.conf
 
 # cmake build directory
 build/
+
+# Rust
+target/
+Cargo.lock
