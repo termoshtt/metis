@@ -1,14 +1,21 @@
 metis
 ======
 
-Rust wrapper of [METIS](http://glaros.dtc.umn.edu/gkhome/metis/metis/overview),
+Rust wrapper of [METIS],
 Partitioning UnstructuredGraphs, Partitioning Meshes, and ComputingFill-Reducing Orderings of Sparse Matrices
+
+[METIS]: http://glaros.dtc.umn.edu/gkhome/metis/metis/overview
 
 Copyright & License Notice
 ---------------------------
 
-Copyright 2020 Toshiki Teramura
-Copyright 1995-2013, Regents of the University of Minnesota
+This software includes the original [METIS][METIS] which is distributed in the Apache License 2.0.
+The original license file is placed at [metis-src/metis-5.1.0/LICENSE.txt](metis-src/metis-5.1.0/LICENSE.txt).
+
+These Rust wrapper, [metis-src](./metis-src), [metis-sys](./metis-sys), and [metis](./metis) crates
+are also distributed in the Apache License 2.0.
+
+Copyright 2020, Toshiki Teramura
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
