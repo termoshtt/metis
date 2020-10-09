@@ -1,0 +1,14 @@
+[package]
+name = "metis-sys"
+version = "0.1.0"
+authors = ["Toshiki Teramura <toshiki.teramura@gmail.com>"]
+edition = "2018"
+
+[features]
+default = ["source"]
+source  = ["metis-src"]
+system  = []
+
+[dependencies.metis-src]
+path = "../metis-src"
+optional = true

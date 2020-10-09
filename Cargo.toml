@@ -1,5 +1,5 @@
 [workspace]
 members = [
   "metis-src",
+  "metis-sys",
 ]
-
