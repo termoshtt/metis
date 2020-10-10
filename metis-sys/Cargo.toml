@@ -9,6 +9,10 @@ default = ["source"]
 source  = ["metis-src"]
 system  = []
 
+[dependencies]
+num-traits = "0.2.12"
+num-derive = "0.3.2"
+
 [dependencies.metis-src]
 path = "../metis-src"
 optional = true

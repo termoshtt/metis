@@ -147,7 +147,7 @@ extern "C" {
 }
 #[repr(i32)]
 #[doc = " Return codes"]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum rstatus_et {
     #[doc = "< Returned normally"]
     METIS_OK = 1,
@@ -160,7 +160,7 @@ pub enum rstatus_et {
 }
 #[repr(u32)]
 #[doc = " Operation type codes"]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum moptype_et {
     METIS_OP_PMETIS = 0,
     METIS_OP_KMETIS = 1,
@@ -168,7 +168,7 @@ pub enum moptype_et {
 }
 #[repr(u32)]
 #[doc = " Options codes (i.e., options[])"]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum moptions_et {
     METIS_OPTION_PTYPE = 0,
     METIS_OPTION_OBJTYPE = 1,
@@ -198,28 +198,28 @@ pub enum moptions_et {
 }
 #[repr(u32)]
 #[doc = " Partitioning Schemes"]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum mptype_et {
     METIS_PTYPE_RB = 0,
     METIS_PTYPE_KWAY = 1,
 }
 #[repr(u32)]
 #[doc = " Graph types for meshes"]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum mgtype_et {
     METIS_GTYPE_DUAL = 0,
     METIS_GTYPE_NODAL = 1,
 }
 #[repr(u32)]
 #[doc = " Coarsening Schemes"]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum mctype_et {
     METIS_CTYPE_RM = 0,
     METIS_CTYPE_SHEM = 1,
 }
 #[repr(u32)]
 #[doc = " Initial partitioning schemes"]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum miptype_et {
     METIS_IPTYPE_GROW = 0,
     METIS_IPTYPE_RANDOM = 1,
@@ -229,7 +229,7 @@ pub enum miptype_et {
 }
 #[repr(u32)]
 #[doc = " Refinement schemes"]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum mrtype_et {
     METIS_RTYPE_FM = 0,
     METIS_RTYPE_GREEDY = 1,
@@ -238,7 +238,7 @@ pub enum mrtype_et {
 }
 #[repr(u32)]
 #[doc = " Debug Levels"]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum mdbglvl_et {
     #[doc = "< Shows various diagnostic messages"]
     METIS_DBG_INFO = 1,
@@ -262,7 +262,7 @@ pub enum mdbglvl_et {
     METIS_DBG_MEMORY = 2048,
 }
 #[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum mobjtype_et {
     METIS_OBJTYPE_CUT = 0,
     METIS_OBJTYPE_VOL = 1,
