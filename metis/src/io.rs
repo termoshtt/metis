@@ -1,5 +1,24 @@
 //! I/O for METIS file formats
 
+use std::path::*;
+
+/// Errors raised because METIS graph file is in invalid format.
+#[derive(Debug, thiserror::Error)]
+pub enum InvalidGraphFileError {
+    #[error("{}:0 METIS graph file does not have valid header", filename.display())]
+    NoHeader {
+        /// Name of METIS graph file
+        filename: PathBuf,
+    },
+    #[error("{}:{line} METIS graph file have invalid line", filename.display())]
+    InvalidLine {
+        /// Name of METIS graph file
+        filename: PathBuf,
+        /// Where the invalid line is found
+        line: usize,
+    },
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
