@@ -1,0 +1,19 @@
+[package]
+name = "metis"
+version = "0.1.0"
+authors = ["Toshiki Teramura <toshiki.teramura@gmail.com>"]
+edition = "2018"
+
+[features]
+default = ["source"]
+source  = ["metis-sys/source"]
+system  = ["metis-sys/system"]
+
+[dependencies]
+thiserror = "1.0"
+num-traits = "0.2.12"
+
+[dependencies.metis-sys]
+path = "../metis-sys"
+optional = true
+default-features = false
