@@ -7,18 +7,6 @@ on:
   pull_request: {}
 
 jobs:
-  windows:
-    runs-on: windows-2019
-    steps:
-    - uses: actions/checkout@v1
-    - uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: >
-          --features=source
-          --no-default-features
-          --manifest-path=metis/Cargo.toml
-
   macos:
     runs-on: macos-10.15
     steps:
