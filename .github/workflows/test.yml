@@ -1,4 +1,4 @@
-name: Rust
+name: cargo-test
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
       - master
   pull_request: {}
 
+jobs:
   windows:
     runs-on: windows-2019
     steps:
