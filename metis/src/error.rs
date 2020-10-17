@@ -5,7 +5,7 @@ use num_traits::FromPrimitive;
 
 use crate::io::GraphFileError;
 
-const ISSUE_URL: &'static str = "https://github.com/termoshtt/metis/issues";
+const ISSUE_URL: &str = "https://github.com/termoshtt/metis/issues";
 
 pub type Result<T> = ::std::result::Result<T, Error>;
 

@@ -169,28 +169,14 @@ impl Line {
         let (vertices, edge_weights) = if header.fmt.has_edge_weight {
             let mut vs = Vec::new();
             let mut es = Vec::new();
-            loop {
-                let v = match nums.next() {
-                    Some(v) => v.parse::<i32>()?,
-                    None => break,
-                };
-                vs.push(v);
-                let e = nums
-                    .next()
-                    .ok_or(LineError::EdgeWeightMissing)?
-                    .parse::<f32>()?;
+            while let Some(v) = nums.next() {
+                vs.push(v.parse()?);
+                let e = nums.next().ok_or(LineError::EdgeWeightMissing)?.parse()?;
                 es.push(e);
             }
             (vs, Some(es))
         } else {
-            let mut vs = Vec::new();
-            loop {
-                let v = match nums.next() {
-                    Some(v) => v.parse::<i32>()?,
-                    None => break,
-                };
-                vs.push(v);
-            }
+            let vs = nums.map(|v| v.parse()).collect::<Result<Vec<i32>, _>>()?;
             (vs, None)
         };
         for &index in &vertices {
