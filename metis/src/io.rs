@@ -107,59 +107,64 @@ impl Header {
 #[cfg(test)]
 mod tests {
     use super::*;
+    mod format {
+        use super::*;
+        #[test]
+        fn new() {
+            let fmt = Format::new("011");
+            dbg!(&fmt);
+            assert!(!fmt.has_vertex_size);
+            assert!(fmt.has_vertex_weight);
+            assert!(fmt.has_edge_weight);
+        }
 
-    #[test]
-    fn format_new() {
-        let fmt = Format::new("011");
-        dbg!(&fmt);
-        assert!(!fmt.has_vertex_size);
-        assert!(fmt.has_vertex_weight);
-        assert!(fmt.has_edge_weight);
+        #[should_panic]
+        #[test]
+        fn new_invalid1() {
+            let _fmt = Format::new("0111");
+        }
+
+        #[should_panic]
+        #[test]
+        fn new_invalid2() {
+            let _fmt = Format::new("012");
+        }
+
+        #[should_panic]
+        #[test]
+        fn new_invalid3() {
+            let _fmt = Format::new("01");
+        }
     }
 
-    #[should_panic]
-    #[test]
-    fn format_new_invalid1() {
-        let _fmt = Format::new("0111");
-    }
+    mod header {
+        use super::*;
+        #[test]
+        fn parse_success() {
+            let header = Header::parse("", "10 34");
+            assert_eq!(header.num_vertices, 10);
+            assert_eq!(header.num_edges, 34);
+            assert_eq!(header.fmt, Format::default());
+            assert_eq!(header.num_weights, 1);
 
-    #[should_panic]
-    #[test]
-    fn format_new_invalid2() {
-        let _fmt = Format::new("012");
-    }
+            let header = Header::parse("", "10 34 011");
+            assert_eq!(header.num_vertices, 10);
+            assert_eq!(header.num_edges, 34);
+            assert_eq!(header.fmt, Format::new("011"));
+            assert_eq!(header.num_weights, 1);
 
-    #[should_panic]
-    #[test]
-    fn format_new_invalid3() {
-        let _fmt = Format::new("01");
-    }
+            let header = Header::parse("", "10 34 011 3");
+            assert_eq!(header.num_vertices, 10);
+            assert_eq!(header.num_edges, 34);
+            assert_eq!(header.fmt, Format::new("011"));
+            assert_eq!(header.num_weights, 3);
+        }
 
-    #[test]
-    fn parse_header_success() {
-        let header = Header::parse("", "10 34");
-        assert_eq!(header.num_vertices, 10);
-        assert_eq!(header.num_edges, 34);
-        assert_eq!(header.fmt, Format::default());
-        assert_eq!(header.num_weights, 1);
-
-        let header = Header::parse("", "10 34 011");
-        assert_eq!(header.num_vertices, 10);
-        assert_eq!(header.num_edges, 34);
-        assert_eq!(header.fmt, Format::new("011"));
-        assert_eq!(header.num_weights, 1);
-
-        let header = Header::parse("", "10 34 011 3");
-        assert_eq!(header.num_vertices, 10);
-        assert_eq!(header.num_edges, 34);
-        assert_eq!(header.fmt, Format::new("011"));
-        assert_eq!(header.num_weights, 3);
-    }
-
-    #[should_panic]
-    #[test]
-    fn parse_header_fail_negative() {
-        let _ = Header::parse("", "10 -34");
+        #[should_panic]
+        #[test]
+        fn parse_fail_negative() {
+            let _ = Header::parse("", "10 -34");
+        }
     }
 
     #[test]
@@ -174,7 +179,8 @@ mod tests {
             1 3 6
             5 4 7
             6 4
-        "#;
+        "#
+        .trim();
         unimplemented!()
     }
 
@@ -190,7 +196,8 @@ mod tests {
             1 1 3 3 6 2
             5 2 4 2 7 6
             6 6 4 5
-        "#;
+        "#
+        .trim();
         unimplemented!()
     }
 
@@ -206,7 +213,8 @@ mod tests {
             1 1 1 3 3 6 2
             6 5 2 4 2 7 6
             2 6 6 4 5
-        "#;
+        "#
+        .trim();
         unimplemented!()
     }
 
@@ -222,7 +230,8 @@ mod tests {
             1 1 1 1 3 6
             2 2 1 5 4 7
             1 2 1 6 4
-        "#;
+        "#
+        .trim();
         unimplemented!()
     }
 }
