@@ -1,6 +1,6 @@
 //! I/O for METIS file formats
 
-use std::path::*;
+use std::{path::*, str::FromStr};
 
 #[derive(Debug, PartialEq, Clone, thiserror::Error)]
 pub enum LineError {
@@ -39,6 +39,9 @@ pub enum InvalidGraphFileError {
         /// Where the invalid line is found
         line_position: usize,
     },
+
+    #[error("Edge size mismatch: actual({actual}) != header({header})")]
+    EdgeSizeMissmatch { actual: usize, header: usize },
 
     #[error("METIS graph file not found")]
     FileNotFound(#[from] std::io::Error),
@@ -205,6 +208,49 @@ impl Line {
     }
 }
 
+/// uncompressed graph
+#[derive(Debug, Clone)]
+pub struct UndirectedGraph {
+    vertex_size: usize,
+    edges: Vec<(i32, i32)>,
+}
+
+impl UndirectedGraph {
+    pub fn from_iter(
+        filename: impl AsRef<Path>,
+        mut lines: impl Iterator<Item = String>,
+    ) -> Result<Self, InvalidGraphFileError> {
+        let header = Header::parse(filename, &lines.next().unwrap());
+        let mut edges = Vec::new();
+        for (from_index, line) in lines.enumerate() {
+            let from_index = from_index as i32 + 1;
+            let parsed = Line::parse(&header, &line).unwrap();
+            for &to_index in &parsed.vertices {
+                if from_index < to_index {
+                    edges.push((from_index, to_index));
+                }
+            }
+        }
+        if edges.len() != header.num_edges {
+            return Err(InvalidGraphFileError::EdgeSizeMissmatch {
+                actual: edges.len(),
+                header: header.num_edges,
+            });
+        }
+        Ok(UndirectedGraph {
+            vertex_size: header.num_vertices as usize,
+            edges,
+        })
+    }
+}
+
+impl FromStr for UndirectedGraph {
+    type Err = InvalidGraphFileError;
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        UndirectedGraph::from_iter("", input.trim().lines().map(|line| line.to_string()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -333,7 +379,7 @@ mod tests {
     #[test]
     fn unweighted_graph() {
         // graph in Figure 2.(a)
-        let _graph = r#"
+        let input = r#"
             7 11
             5 3 2
             1 3 4
@@ -342,15 +388,14 @@ mod tests {
             1 3 6
             5 4 7
             6 4
-        "#
-        .trim();
-        unimplemented!()
+        "#;
+        let _graph = UndirectedGraph::from_str(input).unwrap();
     }
 
     #[test]
     fn weighted_graph_weights_on_edges() {
         // graph in Figure 2.(b)
-        let _graph = r#"
+        let input = r#"
             7 11 001
             5 1 3 2 2 1
             1 1 3 2 4 1
@@ -359,15 +404,14 @@ mod tests {
             1 1 3 3 6 2
             5 2 4 2 7 6
             6 6 4 5
-        "#
-        .trim();
-        unimplemented!()
+        "#;
+        let _graph = UndirectedGraph::from_str(input).unwrap();
     }
 
     #[test]
     fn weighted_graph_weights_both_on_vertices_and_edges() {
         // graph in Figure 2.(c)
-        let _graph = r#"
+        let input = r#"
             7 11 011
             4 5 1 3 2 2 1
             2 1 1 3 2 4 1
@@ -376,15 +420,14 @@ mod tests {
             1 1 1 3 3 6 2
             6 5 2 4 2 7 6
             2 6 6 4 5
-        "#
-        .trim();
-        unimplemented!()
+        "#;
+        let _graph = UndirectedGraph::from_str(input).unwrap();
     }
 
     #[test]
     fn multi_constraint_graph() {
         // graph in Figure 2.(d)
-        let _graph = r#"
+        let input = r#"
             7 11 010 3
             1 2 0 5 3 2
             0 2 2 1 3 4
@@ -393,8 +436,7 @@ mod tests {
             1 1 1 1 3 6
             2 2 1 5 4 7
             1 2 1 6 4
-        "#
-        .trim();
-        unimplemented!()
+        "#;
+        let _graph = UndirectedGraph::from_str(input).unwrap();
     }
 }
