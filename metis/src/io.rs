@@ -324,7 +324,7 @@ mod tests {
         #[should_panic]
         #[test]
         fn parse_fail_negative() {
-            let _ = Header::from_str("10 -34");
+            let _ = Header::from_str("10 -34").unwrap();
         }
     }
 
