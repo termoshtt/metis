@@ -205,7 +205,7 @@ pub struct UndirectedGraph {
 }
 
 impl UndirectedGraph {
-    pub fn from_iter(mut lines: impl Iterator<Item = String>) -> Result<Self, GraphFileError> {
+    fn from_lines(mut lines: impl Iterator<Item = String>) -> Result<Self, GraphFileError> {
         let header = Header::from_str(
             &lines
                 .next()
@@ -241,7 +241,7 @@ impl UndirectedGraph {
 impl FromStr for UndirectedGraph {
     type Err = GraphFileError;
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        UndirectedGraph::from_iter(input.trim().lines().map(|line| line.to_string()))
+        UndirectedGraph::from_lines(input.trim().lines().map(|line| line.to_string()))
     }
 }
 
