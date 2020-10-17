@@ -23,7 +23,7 @@ pub enum LineError {
 /// Errors raised because METIS graph file is in invalid format.
 #[derive(Debug, thiserror::Error)]
 pub enum InvalidGraphFileError {
-    #[error("{}:0 METIS graph file does not have valid header", filename.display())]
+    #[error("{}:0 METIS graph file does not have header", filename.display())]
     NoHeader {
         /// Name of METIS graph file.
         /// This may be empty if graph is loaded from string.
@@ -220,11 +220,23 @@ impl UndirectedGraph {
         filename: impl AsRef<Path>,
         mut lines: impl Iterator<Item = String>,
     ) -> Result<Self, InvalidGraphFileError> {
-        let header = Header::parse(filename, &lines.next().unwrap());
+        let filename = filename.as_ref();
+        let header = Header::parse(
+            filename,
+            &lines.next().ok_or(InvalidGraphFileError::NoHeader {
+                filename: filename.to_owned(),
+            })?,
+        );
         let mut edges = Vec::new();
         for (from_index, line) in lines.enumerate() {
             let from_index = from_index as i32 + 1;
-            let parsed = Line::parse(&header, &line).unwrap();
+            let parsed = Line::parse(&header, &line).map_err(|error| {
+                InvalidGraphFileError::InvalidLine {
+                    error,
+                    filename: filename.to_owned(),
+                    line_position: from_index as usize,
+                }
+            })?;
             for &to_index in &parsed.vertices {
                 if from_index < to_index {
                     edges.push((from_index, to_index));
