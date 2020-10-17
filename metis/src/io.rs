@@ -7,7 +7,8 @@ use std::path::*;
 pub enum InvalidGraphFileError {
     #[error("{}:0 METIS graph file does not have valid header", filename.display())]
     NoHeader {
-        /// Name of METIS graph file
+        /// Name of METIS graph file.
+        /// This may be empty if graph is loaded from string.
         filename: PathBuf,
     },
     #[error("{}:{line} METIS graph file have invalid line", filename.display())]
@@ -17,6 +18,9 @@ pub enum InvalidGraphFileError {
         /// Where the invalid line is found
         line: usize,
     },
+
+    #[error("METIS graph file not found")]
+    FileNotFound(#[from] std::io::Error),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -46,15 +50,17 @@ impl Format {
 impl Default for Format {
     fn default() -> Self {
         Format {
-            has_edge_weight: true,
-            has_vertex_weight: true,
-            has_vertex_size: true,
+            has_edge_weight: false,
+            has_vertex_weight: false,
+            has_vertex_size: false,
         }
     }
 }
 
 /// Header of METIS Graph file
+#[derive(Debug, Clone, PartialEq)]
 struct Header {
+    filename: PathBuf,
     /// Number of vertices
     num_vertices: usize,
     /// Number of edges
@@ -65,8 +71,9 @@ struct Header {
 }
 
 impl Header {
-    fn parse(line: &str) -> Self {
-        let mut split_iter = line.split(" ");
+    fn parse<P: AsRef<Path>>(filename: P, line: &str) -> Self {
+        dbg!(line);
+        let mut split_iter = line.trim().split(" ");
         let num_vertices = split_iter
             .next()
             .expect("Graph file header does not contain the number of vertices")
@@ -88,6 +95,7 @@ impl Header {
             None => 1,
         };
         Header {
+            filename: filename.as_ref().to_owned(),
             num_vertices,
             num_edges,
             fmt,
@@ -129,19 +137,19 @@ mod tests {
 
     #[test]
     fn parse_header_success() {
-        let header = Header::parse("10 34");
+        let header = Header::parse("", "10 34");
         assert_eq!(header.num_vertices, 10);
         assert_eq!(header.num_edges, 34);
         assert_eq!(header.fmt, Format::default());
         assert_eq!(header.num_weights, 1);
 
-        let header = Header::parse("10 34 011");
+        let header = Header::parse("", "10 34 011");
         assert_eq!(header.num_vertices, 10);
         assert_eq!(header.num_edges, 34);
         assert_eq!(header.fmt, Format::new("011"));
         assert_eq!(header.num_weights, 1);
 
-        let header = Header::parse("10 34 011 3");
+        let header = Header::parse("", "10 34 011 3");
         assert_eq!(header.num_vertices, 10);
         assert_eq!(header.num_edges, 34);
         assert_eq!(header.fmt, Format::new("011"));
@@ -151,7 +159,7 @@ mod tests {
     #[should_panic]
     #[test]
     fn parse_header_fail_negative() {
-        let _ = Header::parse("10 -34");
+        let _ = Header::parse("", "10 -34");
     }
 
     #[test]
