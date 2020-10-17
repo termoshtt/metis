@@ -91,7 +91,7 @@ struct Header {
 impl Header {
     fn parse<P: AsRef<Path>>(filename: P, line: &str) -> Self {
         dbg!(line);
-        let mut split_iter = line.trim().split(" ");
+        let mut split_iter = line.trim().split_whitespace();
         let num_vertices = split_iter
             .next()
             .expect("Graph file header does not contain the number of vertices")
@@ -123,7 +123,7 @@ impl Header {
 }
 
 #[derive(Debug)]
-struct ParsedLine {
+struct Line {
     /// `s` in manual
     /// None if Header.has_vertex_size is false
     vertex_size: Option<i32>,
@@ -137,58 +137,60 @@ struct ParsedLine {
     edge_weights: Option<Vec<f32>>,
 }
 
-fn parse_line(header: &Header, line: &str) -> Result<ParsedLine, LineError> {
-    let mut nums = line.trim().split(" ");
-    let vertex_size = if header.fmt.has_vertex_size {
-        let s = nums.next().ok_or(LineError::VertexSizeMissing)?;
-        let s: i32 = s.parse()?;
-        Some(s)
-    } else {
-        None
-    };
-    let vertex_weights = if header.fmt.has_vertex_weight {
-        let ws = nums
-            .by_ref()
-            .take(header.num_weights)
-            .map(|num| num.parse())
-            .collect::<Result<Vec<f32>, _>>()?;
-        Some(ws)
-    } else {
-        None
-    };
-    let (vertices, edge_weights) = if header.fmt.has_edge_weight {
-        let mut vs = Vec::new();
-        let mut es = Vec::new();
-        loop {
-            let v = match nums.next() {
-                Some(v) => v.parse::<i32>()?,
-                None => break,
-            };
-            vs.push(v);
-            let e = nums
-                .next()
-                .ok_or(LineError::EdgeWeightMissing)?
-                .parse::<f32>()?;
-            es.push(e);
-        }
-        (vs, Some(es))
-    } else {
-        let mut vs = Vec::new();
-        loop {
-            let v = match nums.next() {
-                Some(v) => v.parse::<i32>()?,
-                None => break,
-            };
-            vs.push(v);
-        }
-        (vs, None)
-    };
-    Ok(ParsedLine {
-        vertex_size,
-        vertex_weights,
-        vertices,
-        edge_weights,
-    })
+impl Line {
+    fn parse(header: &Header, line: &str) -> Result<Self, LineError> {
+        let mut nums = line.trim().split_whitespace();
+        let vertex_size = if header.fmt.has_vertex_size {
+            let s = nums.next().ok_or(LineError::VertexSizeMissing)?;
+            let s: i32 = s.parse()?;
+            Some(s)
+        } else {
+            None
+        };
+        let vertex_weights = if header.fmt.has_vertex_weight {
+            let ws = nums
+                .by_ref()
+                .take(header.num_weights)
+                .map(|num| num.parse())
+                .collect::<Result<Vec<f32>, _>>()?;
+            Some(ws)
+        } else {
+            None
+        };
+        let (vertices, edge_weights) = if header.fmt.has_edge_weight {
+            let mut vs = Vec::new();
+            let mut es = Vec::new();
+            loop {
+                let v = match nums.next() {
+                    Some(v) => v.parse::<i32>()?,
+                    None => break,
+                };
+                vs.push(v);
+                let e = nums
+                    .next()
+                    .ok_or(LineError::EdgeWeightMissing)?
+                    .parse::<f32>()?;
+                es.push(e);
+            }
+            (vs, Some(es))
+        } else {
+            let mut vs = Vec::new();
+            loop {
+                let v = match nums.next() {
+                    Some(v) => v.parse::<i32>()?,
+                    None => break,
+                };
+                vs.push(v);
+            }
+            (vs, None)
+        };
+        Ok(Self {
+            vertex_size,
+            vertex_weights,
+            vertices,
+            edge_weights,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -245,12 +247,60 @@ mod tests {
             assert_eq!(header.num_edges, 34);
             assert_eq!(header.fmt, Format::new("011"));
             assert_eq!(header.num_weights, 3);
+
+            // multi-space
+            let header = Header::parse("", "10   34 	 011 3");
+            assert_eq!(header.num_vertices, 10);
+            assert_eq!(header.num_edges, 34);
+            assert_eq!(header.fmt, Format::new("011"));
+            assert_eq!(header.num_weights, 3);
         }
 
         #[should_panic]
         #[test]
         fn parse_fail_negative() {
             let _ = Header::parse("", "10 -34");
+        }
+    }
+
+    mod line {
+        use super::*;
+
+        #[test]
+        fn parse_default() {
+            let header = Header::parse("", "100 100");
+            let line = Line::parse(&header, "1 10 30").unwrap();
+            assert!(line.vertex_size.is_none());
+            assert!(line.vertex_weights.is_none());
+            assert!(line.edge_weights.is_none());
+            assert_eq!(line.vertices, vec![1, 10, 30]);
+
+            // multi-space
+            let line = Line::parse(&header, "1  10 	 30").unwrap();
+            assert!(line.vertex_size.is_none());
+            assert!(line.vertex_weights.is_none());
+            assert!(line.edge_weights.is_none());
+            assert_eq!(line.vertices, vec![1, 10, 30]);
+        }
+
+        #[test]
+        fn parse_edge_weight() {
+            let header = Header::parse("", "100 100 001");
+            let line = Line::parse(&header, "1 12.34 10 5678 30 -999").unwrap();
+            assert!(line.vertex_size.is_none());
+            assert!(line.vertex_weights.is_none());
+            assert_eq!(line.vertices, vec![1, 10, 30]);
+            assert_eq!(line.edge_weights.unwrap(), vec![12.34, 5678.0, -999.0]);
+        }
+
+        #[test]
+        fn parse_vertex_weight() {
+            let header = Header::parse("", "100 100 010 3");
+            let line = Line::parse(&header, "0.1 -3.0 10 1 10 30").unwrap();
+            assert!(line.vertex_size.is_none());
+            assert!(line.edge_weights.is_none());
+            assert_eq!(line.vertices, vec![1, 10, 30]);
+            assert_eq!(line.vertex_weights.unwrap(), vec![0.1, -3.0, 10.0]);
         }
     }
 
