@@ -2,13 +2,16 @@
 
 use std::path::*;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, PartialEq, Clone, thiserror::Error)]
 pub enum LineError {
     #[error("vertex size `s` in manual is missing")]
     VertexSizeMissing,
 
     #[error("edge weight does not exists")]
     EdgeWeightMissing,
+
+    #[error("Vertex is out-of-range: {index} > {num_vertices}")]
+    VertexOutOfRange { index: i32, num_vertices: i32 },
 
     #[error(transparent)]
     ParseIntError(#[from] std::num::ParseIntError),
@@ -184,6 +187,15 @@ impl Line {
             }
             (vs, None)
         };
+        for &index in &vertices {
+            let num_vertices = header.num_vertices as i32;
+            if index > num_vertices {
+                return Err(LineError::VertexOutOfRange {
+                    index,
+                    num_vertices,
+                });
+            }
+        }
         Ok(Self {
             vertex_size,
             vertex_weights,
@@ -301,6 +313,20 @@ mod tests {
             assert!(line.edge_weights.is_none());
             assert_eq!(line.vertices, vec![1, 10, 30]);
             assert_eq!(line.vertex_weights.unwrap(), vec![0.1, -3.0, 10.0]);
+        }
+
+        #[test]
+        fn vertex_out_of_range() {
+            let header = Header::parse("", "10 20"); // num_vertices = 10
+            let result = Line::parse(&header, "100 200"); // index = 100 is too large
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err(),
+                LineError::VertexOutOfRange {
+                    index: 100,
+                    num_vertices: 10
+                }
+            );
         }
     }
 
