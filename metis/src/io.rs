@@ -1,6 +1,6 @@
 //! I/O for METIS file formats
 
-use std::{path::*, str::FromStr};
+use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Clone, thiserror::Error)]
 pub enum LineError {
@@ -22,29 +22,20 @@ pub enum LineError {
 
 /// Errors raised because METIS graph file is in invalid format.
 #[derive(Debug, thiserror::Error)]
-pub enum InvalidGraphFileError {
-    #[error("{}:0 METIS graph file does not have header", filename.display())]
-    NoHeader {
-        /// Name of METIS graph file.
-        /// This may be empty if graph is loaded from string.
-        filename: PathBuf,
-    },
+pub enum GraphFileError {
+    #[error("METIS graph file does not have header")]
+    NoHeader {},
 
-    #[error("{}:{line_position} METIS graph file have invalid line: {error:?}", filename.display())]
+    #[error("METIS graph file have invalid line at {line_position}: {error:?}")]
     InvalidLine {
         /// Error type
         error: LineError,
-        /// Name of METIS graph file
-        filename: PathBuf,
         /// Where the invalid line is found
         line_position: usize,
     },
 
     #[error("Edge size mismatch: actual({actual}) != header({header})")]
     EdgeSizeMissmatch { actual: usize, header: usize },
-
-    #[error("METIS graph file not found")]
-    FileNotFound(#[from] std::io::Error),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -84,7 +75,6 @@ impl Default for Format {
 /// Header of METIS Graph file
 #[derive(Debug, Clone, PartialEq)]
 struct Header {
-    filename: PathBuf,
     /// Number of vertices
     num_vertices: usize,
     /// Number of edges
@@ -95,7 +85,7 @@ struct Header {
 }
 
 impl Header {
-    fn parse<P: AsRef<Path>>(filename: P, line: &str) -> Self {
+    fn parse(line: &str) -> Self {
         dbg!(line);
         let mut split_iter = line.trim().split_whitespace();
         let num_vertices = split_iter
@@ -119,7 +109,6 @@ impl Header {
             None => 1,
         };
         Header {
-            filename: filename.as_ref().to_owned(),
             num_vertices,
             num_edges,
             fmt,
@@ -216,27 +205,16 @@ pub struct UndirectedGraph {
 }
 
 impl UndirectedGraph {
-    pub fn from_iter(
-        filename: impl AsRef<Path>,
-        mut lines: impl Iterator<Item = String>,
-    ) -> Result<Self, InvalidGraphFileError> {
-        let filename = filename.as_ref();
-        let header = Header::parse(
-            filename,
-            &lines.next().ok_or(InvalidGraphFileError::NoHeader {
-                filename: filename.to_owned(),
-            })?,
-        );
+    pub fn from_iter(mut lines: impl Iterator<Item = String>) -> Result<Self, GraphFileError> {
+        let header = Header::parse(&lines.next().ok_or(GraphFileError::NoHeader {})?);
         let mut edges = Vec::new();
         for (from_index, line) in lines.enumerate() {
             let from_index = from_index as i32 + 1;
-            let parsed = Line::parse(&header, &line).map_err(|error| {
-                InvalidGraphFileError::InvalidLine {
+            let parsed =
+                Line::parse(&header, &line).map_err(|error| GraphFileError::InvalidLine {
                     error,
-                    filename: filename.to_owned(),
                     line_position: from_index as usize,
-                }
-            })?;
+                })?;
             for &to_index in &parsed.vertices {
                 if from_index < to_index {
                     edges.push((from_index, to_index));
@@ -244,7 +222,7 @@ impl UndirectedGraph {
             }
         }
         if edges.len() != header.num_edges {
-            return Err(InvalidGraphFileError::EdgeSizeMissmatch {
+            return Err(GraphFileError::EdgeSizeMissmatch {
                 actual: edges.len(),
                 header: header.num_edges,
             });
@@ -257,9 +235,9 @@ impl UndirectedGraph {
 }
 
 impl FromStr for UndirectedGraph {
-    type Err = InvalidGraphFileError;
+    type Err = GraphFileError;
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        UndirectedGraph::from_iter("", input.trim().lines().map(|line| line.to_string()))
+        UndirectedGraph::from_iter(input.trim().lines().map(|line| line.to_string()))
     }
 }
 
@@ -300,26 +278,26 @@ mod tests {
         use super::*;
         #[test]
         fn parse_success() {
-            let header = Header::parse("", "10 34");
+            let header = Header::parse("10 34");
             assert_eq!(header.num_vertices, 10);
             assert_eq!(header.num_edges, 34);
             assert_eq!(header.fmt, Format::default());
             assert_eq!(header.num_weights, 1);
 
-            let header = Header::parse("", "10 34 011");
+            let header = Header::parse("10 34 011");
             assert_eq!(header.num_vertices, 10);
             assert_eq!(header.num_edges, 34);
             assert_eq!(header.fmt, Format::new("011"));
             assert_eq!(header.num_weights, 1);
 
-            let header = Header::parse("", "10 34 011 3");
+            let header = Header::parse("10 34 011 3");
             assert_eq!(header.num_vertices, 10);
             assert_eq!(header.num_edges, 34);
             assert_eq!(header.fmt, Format::new("011"));
             assert_eq!(header.num_weights, 3);
 
             // multi-space
-            let header = Header::parse("", "10   34 	 011 3");
+            let header = Header::parse("10   34 	 011 3");
             assert_eq!(header.num_vertices, 10);
             assert_eq!(header.num_edges, 34);
             assert_eq!(header.fmt, Format::new("011"));
@@ -329,7 +307,7 @@ mod tests {
         #[should_panic]
         #[test]
         fn parse_fail_negative() {
-            let _ = Header::parse("", "10 -34");
+            let _ = Header::parse("10 -34");
         }
     }
 
@@ -338,7 +316,7 @@ mod tests {
 
         #[test]
         fn parse_default() {
-            let header = Header::parse("", "100 100");
+            let header = Header::parse("100 100");
             let line = Line::parse(&header, "1 10 30").unwrap();
             assert!(line.vertex_size.is_none());
             assert!(line.vertex_weights.is_none());
@@ -355,7 +333,7 @@ mod tests {
 
         #[test]
         fn parse_edge_weight() {
-            let header = Header::parse("", "100 100 001");
+            let header = Header::parse("100 100 001");
             let line = Line::parse(&header, "1 12.34 10 5678 30 -999").unwrap();
             assert!(line.vertex_size.is_none());
             assert!(line.vertex_weights.is_none());
@@ -365,7 +343,7 @@ mod tests {
 
         #[test]
         fn parse_vertex_weight() {
-            let header = Header::parse("", "100 100 010 3");
+            let header = Header::parse("100 100 010 3");
             let line = Line::parse(&header, "0.1 -3.0 10 1 10 30").unwrap();
             assert!(line.vertex_size.is_none());
             assert!(line.edge_weights.is_none());
@@ -375,7 +353,7 @@ mod tests {
 
         #[test]
         fn vertex_out_of_range() {
-            let header = Header::parse("", "10 20"); // num_vertices = 10
+            let header = Header::parse("10 20"); // num_vertices = 10
             let result = Line::parse(&header, "100 200"); // index = 100 is too large
             assert!(result.is_err());
             assert_eq!(

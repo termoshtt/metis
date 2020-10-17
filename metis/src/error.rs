@@ -3,7 +3,7 @@
 use metis_sys::rstatus_et;
 use num_traits::FromPrimitive;
 
-use crate::io::InvalidGraphFileError;
+use crate::io::GraphFileError;
 
 const ISSUE_URL: &'static str = "https://github.com/termoshtt/metis/issues";
 
@@ -16,7 +16,7 @@ pub enum Error {
     MemoryCannotAllocate { api_name: String },
 
     #[error(transparent)]
-    InvalidGraphFile(#[from] InvalidGraphFileError),
+    InvalidGraphFile(#[from] GraphFileError),
 }
 
 pub(crate) trait MetisErrorCodeCheck {
