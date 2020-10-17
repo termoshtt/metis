@@ -2,6 +2,21 @@
 
 use std::path::*;
 
+#[derive(Debug, thiserror::Error)]
+pub enum LineError {
+    #[error("vertex size `s` in manual is missing")]
+    VertexSizeMissing,
+
+    #[error("edge weight does not exists")]
+    EdgeWeightMissing,
+
+    #[error(transparent)]
+    ParseIntError(#[from] std::num::ParseIntError),
+
+    #[error(transparent)]
+    ParseFloatError(#[from] std::num::ParseFloatError),
+}
+
 /// Errors raised because METIS graph file is in invalid format.
 #[derive(Debug, thiserror::Error)]
 pub enum InvalidGraphFileError {
@@ -11,12 +26,15 @@ pub enum InvalidGraphFileError {
         /// This may be empty if graph is loaded from string.
         filename: PathBuf,
     },
-    #[error("{}:{line} METIS graph file have invalid line", filename.display())]
+
+    #[error("{}:{line_position} METIS graph file have invalid line: {error:?}", filename.display())]
     InvalidLine {
+        /// Error type
+        error: LineError,
         /// Name of METIS graph file
         filename: PathBuf,
         /// Where the invalid line is found
-        line: usize,
+        line_position: usize,
     },
 
     #[error("METIS graph file not found")]
@@ -102,6 +120,75 @@ impl Header {
             num_weights,
         }
     }
+}
+
+#[derive(Debug)]
+struct ParsedLine {
+    /// `s` in manual
+    /// None if Header.has_vertex_size is false
+    vertex_size: Option<i32>,
+    /// `w_1`, `w_2`, ... in manual
+    /// None if Header.has_vertex_weight is false
+    vertex_weights: Option<Vec<f32>>,
+    /// `v1`, ... in manual
+    vertices: Vec<i32>,
+    /// `e1`, ... in manual
+    /// None if Header.has_edge_weight is false
+    edge_weights: Option<Vec<f32>>,
+}
+
+fn parse_line(header: &Header, line: &str) -> Result<ParsedLine, LineError> {
+    let mut nums = line.trim().split(" ");
+    let vertex_size = if header.fmt.has_vertex_size {
+        let s = nums.next().ok_or(LineError::VertexSizeMissing)?;
+        let s: i32 = s.parse()?;
+        Some(s)
+    } else {
+        None
+    };
+    let vertex_weights = if header.fmt.has_vertex_weight {
+        let ws = nums
+            .by_ref()
+            .take(header.num_weights)
+            .map(|num| num.parse())
+            .collect::<Result<Vec<f32>, _>>()?;
+        Some(ws)
+    } else {
+        None
+    };
+    let (vertices, edge_weights) = if header.fmt.has_edge_weight {
+        let mut vs = Vec::new();
+        let mut es = Vec::new();
+        loop {
+            let v = match nums.next() {
+                Some(v) => v.parse::<i32>()?,
+                None => break,
+            };
+            vs.push(v);
+            let e = nums
+                .next()
+                .ok_or(LineError::EdgeWeightMissing)?
+                .parse::<f32>()?;
+            es.push(e);
+        }
+        (vs, Some(es))
+    } else {
+        let mut vs = Vec::new();
+        loop {
+            let v = match nums.next() {
+                Some(v) => v.parse::<i32>()?,
+                None => break,
+            };
+            vs.push(v);
+        }
+        (vs, None)
+    };
+    Ok(ParsedLine {
+        vertex_size,
+        vertex_weights,
+        vertices,
+        edge_weights,
+    })
 }
 
 #[cfg(test)]
