@@ -1,12 +1,22 @@
+//! Errors in metis crate
+
 use metis_sys::rstatus_et;
 use num_traits::FromPrimitive;
 
+use crate::io::GraphFileError;
+
+const ISSUE_URL: &str = "https://github.com/termoshtt/metis/issues";
+
 pub type Result<T> = ::std::result::Result<T, Error>;
 
+/// Aggregated error type of metis crate
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("METIS routine ({api_name}) cannot allocate required memory")]
-    MetisMemoryError { api_name: String },
+    MemoryCannotAllocate { api_name: String },
+
+    #[error(transparent)]
+    InvalidGraphFile(#[from] GraphFileError),
 }
 
 pub(crate) trait MetisErrorCodeCheck {
@@ -15,19 +25,28 @@ pub(crate) trait MetisErrorCodeCheck {
 
 impl MetisErrorCodeCheck for i32 {
     fn check(self, api_name: &str) -> Result<()> {
-        let st = rstatus_et::from_i32(self).expect("Failed to convert to METIS status enum");
+        let st = rstatus_et::from_i32(self).unwrap_or_else(|| {
+            panic!(
+                "Invalid return value ({}) of METIS routine ({}). This should be a bug of METIS. Please send a bug report to {}",
+                self, api_name, ISSUE_URL
+            )
+        });
         match st {
             rstatus_et::METIS_OK => Ok(()),
-            rstatus_et::METIS_ERROR_INPUT => panic!(
-                "METIS routine ({}) raises METIS_ERROR_INPUT. This must be a bug of metis crate.",
-                api_name
-            ),
-            rstatus_et::METIS_ERROR_MEMORY => Err(Error::MetisMemoryError {
+            rstatus_et::METIS_ERROR_MEMORY => Err(Error::MemoryCannotAllocate {
                 api_name: api_name.into(),
             }),
+
+            // Following two cases must be bug of this crate, and cannot be recoverted by user.
+            rstatus_et::METIS_ERROR_INPUT => panic!(
+                "METIS routine ({}) raises METIS_ERROR_INPUT, which must be handled by metis crate. Please send a bug report to {}",
+                api_name,
+                ISSUE_URL,
+            ),
             rstatus_et::METIS_ERROR => panic!(
-                "METIS routine ({}) raises METIS_ERROR. Something wrong...",
-                api_name
+                "METIS routine ({}) raises unknown error. Please send a bug report to {}",
+                api_name,
+                ISSUE_URL,
             ),
         }
     }

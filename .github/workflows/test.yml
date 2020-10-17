@@ -50,3 +50,11 @@ jobs:
       with:
         command: fmt
         args: -- --check
+
+  clippy-check:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions-rs/clippy-check@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
