@@ -12,6 +12,15 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - uses: actions-rs/cargo@v1
+      name: Test metis-sys
+      with:
+        command: test
+        args: >
+          --features=source
+          --no-default-features
+          --manifest-path=metis-sys/Cargo.toml
+    - uses: actions-rs/cargo@v1
+      name: Test metis
       with:
         command: test
         args: >
@@ -35,6 +44,15 @@ jobs:
         sudo apt install -y libmetis-dev
       if: ${{ matrix.feature == 'system' }}
     - uses: actions-rs/cargo@v1
+      name: Test metis-sys
+      with:
+        command: test
+        args: >
+          --features=${{ matrix.feature }}
+          --no-default-features
+          --manifest-path=metis-sys/Cargo.toml
+    - uses: actions-rs/cargo@v1
+      name: Test metis
       with:
         command: test
         args: >
