@@ -12,7 +12,7 @@ impl FromMetisGraphFormat for UndirectedGraph {
         header: &Header,
         lines: impl Iterator<Item = Result<Line, LineError>>,
     ) -> Result<Self, GraphFileError> {
-        let mut edges = Vec::new();
+        let mut edges = Vec::with_capacity(header.num_edges);
         for line in lines {
             let line = line?;
             let from_index = line.position;
