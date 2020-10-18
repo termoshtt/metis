@@ -1,4 +1,4 @@
-//! I/O for METIS file formats
+//! I/O for METIS Graph formats
 
 use std::{path::*, str::FromStr};
 
@@ -9,16 +9,18 @@ pub trait FromMetisGraphFormat: Sized {
         lines: impl Iterator<Item = Result<Line, LineError>>,
     ) -> Result<Self, GraphFileError>;
 
+    /// Read METIS graph file as a string (assumes to be small)
     fn from_metis_graph_str(input: &str) -> Result<Self, GraphFileError> {
         // This default impl assumes `input` is not too large
         Self::from_metis_graph_lines(input.trim().lines().map(|line| line.to_string()))
     }
 
+    /// Read METIS graph file
     fn from_metis_graph(_path: impl AsRef<Path>) -> Result<Self, GraphFileError> {
         todo!()
     }
 
-    // common part implementations
+    // common default implementations
     #[doc(hidden)]
     fn from_metis_graph_lines(
         mut lines: impl Iterator<Item = String>,

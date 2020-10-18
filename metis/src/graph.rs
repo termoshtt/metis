@@ -1,3 +1,5 @@
+//! Graph structures
+
 use crate::io::graph::*;
 
 /// uncompressed graph

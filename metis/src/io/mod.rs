@@ -1,3 +1,5 @@
+//! I/O module for file formats defined by METIS
+
 pub mod graph;
 
 // TODO implement I/O for METIS mesh format
