@@ -1,14 +1,41 @@
 //! I/O for METIS file formats
 
-use std::str::FromStr;
+use std::{path::*, str::FromStr};
 
+/// Constructable from METIS Graph format
 pub trait FromMetisGraphFormat: Sized {
-    fn from_metis_graph_format_lines(
-        lines: impl Iterator<Item = String>,
+    fn from_metis_graph_iter(
+        header: &Header,
+        lines: impl Iterator<Item = Result<Line, GraphFileError>>,
     ) -> Result<Self, GraphFileError>;
 
-    fn from_metis_graph_format_str(input: &str) -> Result<Self, GraphFileError> {
-        Self::from_metis_graph_format_lines(input.trim().lines().map(|line| line.to_string()))
+    fn from_metis_graph_str(input: &str) -> Result<Self, GraphFileError> {
+        // This default impl assumes `input` is not too large
+        Self::from_metis_graph_lines(input.trim().lines().map(|line| line.to_string()))
+    }
+
+    fn from_metis_graph(_path: impl AsRef<Path>) -> Result<Self, GraphFileError> {
+        todo!()
+    }
+
+    // common part implementations
+    #[doc(hidden)]
+    fn from_metis_graph_lines(
+        mut lines: impl Iterator<Item = String>,
+    ) -> Result<Self, GraphFileError> {
+        let header = Header::from_str(
+            &lines
+                .next()
+                .ok_or(GraphFileError::InvalidHeader(HeaderError::Empty))?,
+        )?;
+        let lines = lines.enumerate().map(|(from_index, line)| {
+            let from_index = from_index as i32 + 1;
+            Line::parse(&header, from_index, &line).map_err(|error| GraphFileError::InvalidLine {
+                error,
+                line_position: from_index as usize,
+            })
+        });
+        Self::from_metis_graph_iter(&header, lines)
     }
 }
 
@@ -143,6 +170,7 @@ impl FromStr for Header {
 
 #[derive(Debug)]
 pub struct Line {
+    pub position: i32,
     /// `s` in manual
     /// None if Header.has_vertex_size is false
     pub vertex_size: Option<i32>,
@@ -157,7 +185,7 @@ pub struct Line {
 }
 
 impl Line {
-    pub fn parse(header: &Header, line: &str) -> Result<Self, LineError> {
+    pub fn parse(header: &Header, position: i32, line: &str) -> Result<Self, LineError> {
         let mut nums = line.trim().split_whitespace();
         let vertex_size = if header.fmt.has_vertex_size {
             let s = nums.next().ok_or(LineError::VertexSizeMissing)?;
@@ -199,6 +227,7 @@ impl Line {
             }
         }
         Ok(Self {
+            position,
             vertex_size,
             vertex_weights,
             vertices,
@@ -282,14 +311,16 @@ mod tests {
         #[test]
         fn parse_default() {
             let header = Header::from_str("100 100").unwrap();
-            let line = Line::parse(&header, "1 10 30").unwrap();
+            let line = Line::parse(&header, 3, "1 10 30").unwrap();
+            assert_eq!(line.position, 3);
             assert!(line.vertex_size.is_none());
             assert!(line.vertex_weights.is_none());
             assert!(line.edge_weights.is_none());
             assert_eq!(line.vertices, vec![1, 10, 30]);
 
             // multi-space
-            let line = Line::parse(&header, "1  10 	 30").unwrap();
+            let line = Line::parse(&header, 3, "1  10 	 30").unwrap();
+            assert_eq!(line.position, 3);
             assert!(line.vertex_size.is_none());
             assert!(line.vertex_weights.is_none());
             assert!(line.edge_weights.is_none());
@@ -299,7 +330,8 @@ mod tests {
         #[test]
         fn parse_edge_weight() {
             let header = Header::from_str("100 100 001").unwrap();
-            let line = Line::parse(&header, "1 12.34 10 5678 30 -999").unwrap();
+            let line = Line::parse(&header, 3, "1 12.34 10 5678 30 -999").unwrap();
+            assert_eq!(line.position, 3);
             assert!(line.vertex_size.is_none());
             assert!(line.vertex_weights.is_none());
             assert_eq!(line.vertices, vec![1, 10, 30]);
@@ -309,7 +341,8 @@ mod tests {
         #[test]
         fn parse_vertex_weight() {
             let header = Header::from_str("100 100 010 3").unwrap();
-            let line = Line::parse(&header, "0.1 -3.0 10 1 10 30").unwrap();
+            let line = Line::parse(&header, 3, "0.1 -3.0 10 1 10 30").unwrap();
+            assert_eq!(line.position, 3);
             assert!(line.vertex_size.is_none());
             assert!(line.edge_weights.is_none());
             assert_eq!(line.vertices, vec![1, 10, 30]);
@@ -319,7 +352,7 @@ mod tests {
         #[test]
         fn vertex_out_of_range() {
             let header = Header::from_str("10 20").unwrap(); // num_vertices = 10
-            let result = Line::parse(&header, "100 200"); // index = 100 is too large
+            let result = Line::parse(&header, 3, "100 200"); // index = 100 is too large
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),

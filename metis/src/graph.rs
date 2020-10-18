@@ -1,5 +1,4 @@
 use crate::io::graph::*;
-use std::str::FromStr;
 
 /// uncompressed graph
 #[derive(Debug, Clone)]
@@ -9,28 +8,22 @@ pub struct UndirectedGraph {
 }
 
 impl FromMetisGraphFormat for UndirectedGraph {
-    fn from_metis_graph_format_lines(
-        mut lines: impl Iterator<Item = String>,
+    fn from_metis_graph_iter(
+        header: &Header,
+        lines: impl Iterator<Item = Result<Line, GraphFileError>>,
     ) -> Result<Self, GraphFileError> {
-        let header = Header::from_str(
-            &lines
-                .next()
-                .ok_or(GraphFileError::InvalidHeader(HeaderError::Empty))?,
-        )?;
         let mut edges = Vec::new();
-        for (from_index, line) in lines.enumerate() {
-            let from_index = from_index as i32 + 1;
-            let parsed =
-                Line::parse(&header, &line).map_err(|error| GraphFileError::InvalidLine {
-                    error,
-                    line_position: from_index as usize,
-                })?;
-            for &to_index in &parsed.vertices {
+        for line in lines {
+            let line = line?;
+            let from_index = line.position;
+            for to_index in line.vertices {
                 if from_index < to_index {
                     edges.push((from_index, to_index));
                 }
             }
         }
+
+        // Check edge size
         if edges.len() != header.num_edges {
             return Err(GraphFileError::EdgeSizeMissmatch {
                 actual: edges.len(),
@@ -61,7 +54,7 @@ mod tests {
             5 4 7
             6 4
         "#;
-        let _graph = UndirectedGraph::from_metis_graph_format_str(input).unwrap();
+        let _graph = UndirectedGraph::from_metis_graph_str(input).unwrap();
     }
 
     #[test]
@@ -77,7 +70,7 @@ mod tests {
             5 2 4 2 7 6
             6 6 4 5
         "#;
-        let _graph = UndirectedGraph::from_metis_graph_format_str(input).unwrap();
+        let _graph = UndirectedGraph::from_metis_graph_str(input).unwrap();
     }
 
     #[test]
@@ -93,7 +86,7 @@ mod tests {
             6 5 2 4 2 7 6
             2 6 6 4 5
         "#;
-        let _graph = UndirectedGraph::from_metis_graph_format_str(input).unwrap();
+        let _graph = UndirectedGraph::from_metis_graph_str(input).unwrap();
     }
 
     #[test]
@@ -109,6 +102,6 @@ mod tests {
             2 2 1 5 4 7
             1 2 1 6 4
         "#;
-        let _graph = UndirectedGraph::from_metis_graph_format_str(input).unwrap();
+        let _graph = UndirectedGraph::from_metis_graph_str(input).unwrap();
     }
 }
