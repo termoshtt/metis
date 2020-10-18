@@ -6,7 +6,7 @@ use std::{path::*, str::FromStr};
 pub trait FromMetisGraphFormat: Sized {
     fn from_metis_graph_iter(
         header: &Header,
-        lines: impl Iterator<Item = Result<Line, GraphFileError>>,
+        lines: impl Iterator<Item = Result<Line, LineError>>,
     ) -> Result<Self, GraphFileError>;
 
     fn from_metis_graph_str(input: &str) -> Result<Self, GraphFileError> {
@@ -30,10 +30,7 @@ pub trait FromMetisGraphFormat: Sized {
         )?;
         let lines = lines.enumerate().map(|(from_index, line)| {
             let from_index = from_index as i32 + 1;
-            Line::parse(&header, from_index, &line).map_err(|error| GraphFileError::InvalidLine {
-                error,
-                line_position: from_index as usize,
-            })
+            Line::parse(&header, from_index, &line)
         });
         Self::from_metis_graph_iter(&header, lines)
     }
@@ -78,13 +75,8 @@ pub enum GraphFileError {
     #[error(transparent)]
     InvalidHeader(#[from] HeaderError),
 
-    #[error("METIS graph file have invalid line at {line_position}: {error:?}")]
-    InvalidLine {
-        /// Error type
-        error: LineError,
-        /// Where the invalid line is found
-        line_position: usize,
-    },
+    #[error(transparent)]
+    InvalidLine(#[from] LineError),
 
     #[error("Edge size mismatch: actual({actual}) != header({header})")]
     EdgeSizeMissmatch { actual: usize, header: usize },

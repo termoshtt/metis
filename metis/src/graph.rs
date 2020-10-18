@@ -10,7 +10,7 @@ pub struct UndirectedGraph {
 impl FromMetisGraphFormat for UndirectedGraph {
     fn from_metis_graph_iter(
         header: &Header,
-        lines: impl Iterator<Item = Result<Line, GraphFileError>>,
+        lines: impl Iterator<Item = Result<Line, LineError>>,
     ) -> Result<Self, GraphFileError> {
         let mut edges = Vec::new();
         for line in lines {
