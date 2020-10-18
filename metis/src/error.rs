@@ -3,7 +3,7 @@
 use metis_sys::rstatus_et;
 use num_traits::FromPrimitive;
 
-use crate::io::GraphFileError;
+use crate::io::graph::GraphFileError;
 
 const ISSUE_URL: &str = "https://github.com/termoshtt/metis/issues";
 
