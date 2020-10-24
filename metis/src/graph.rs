@@ -93,39 +93,59 @@ impl FromMetisGraphFormat for CSRGraph {
 mod tests {
     use super::*;
 
-    #[test]
-    fn unweighted_graph() {
-        let _graph = UndirectedGraph::from_metis_graph_str(examples::MANUAL_2A).unwrap();
+    mod undirected {
+        use super::*;
+        #[test]
+        fn manual_2a() {
+            let _graph = UndirectedGraph::from_metis_graph_str(examples::MANUAL_2A).unwrap();
+        }
+        #[test]
+        fn manual_2b() {
+            let _graph = UndirectedGraph::from_metis_graph_str(examples::MANUAL_2B).unwrap();
+        }
+        #[test]
+        fn manual_2c() {
+            let _graph = UndirectedGraph::from_metis_graph_str(examples::MANUAL_2C).unwrap();
+        }
+        #[test]
+        fn manual_2d() {
+            let _graph = UndirectedGraph::from_metis_graph_str(examples::MANUAL_2D).unwrap();
+        }
     }
 
-    #[test]
-    fn weighted_graph_weights_on_edges() {
-        let _graph = UndirectedGraph::from_metis_graph_str(examples::MANUAL_2B).unwrap();
-    }
+    mod csr {
+        use super::*;
+        #[test]
+        fn manual_2a() {
+            let _graph = CSRGraph::from_metis_graph_str(examples::MANUAL_2A).unwrap();
+        }
+        #[test]
+        fn manual_2b() {
+            let _graph = CSRGraph::from_metis_graph_str(examples::MANUAL_2B).unwrap();
+        }
+        #[test]
+        fn manual_2c() {
+            let _graph = CSRGraph::from_metis_graph_str(examples::MANUAL_2C).unwrap();
+        }
+        #[test]
+        fn manual_2d() {
+            let _graph = CSRGraph::from_metis_graph_str(examples::MANUAL_2D).unwrap();
+        }
 
-    #[test]
-    fn weighted_graph_weights_both_on_vertices_and_edges() {
-        let _graph = UndirectedGraph::from_metis_graph_str(examples::MANUAL_2C).unwrap();
-    }
-
-    #[test]
-    fn multi_constraint_graph() {
-        let _graph = UndirectedGraph::from_metis_graph_str(examples::MANUAL_2D).unwrap();
-    }
-
-    #[test]
-    fn grid() {
-        let graph = CSRGraph::from_metis_graph_str(examples::MANUAL_3A).unwrap();
-        // Copy from Figure 3 (b) in the manual
-        let ans = CSRGraph {
-            column_indices: vec![
-                1, 5, 0, 2, 6, 1, 3, 7, 2, 4, 8, 3, 9, 0, 6, 10, 1, 5, 7, 11, 2, 6, 8, 12, 3, 7, 9,
-                13, 4, 8, 14, 5, 11, 6, 10, 12, 7, 11, 13, 8, 12, 14, 9, 13,
-            ],
-            num_elements_in_row_cumsum: vec![
-                0, 2, 5, 8, 11, 13, 16, 20, 24, 28, 31, 33, 36, 39, 42, 44,
-            ],
-        };
-        assert_eq!(graph, ans);
+        #[test]
+        fn grid() {
+            let graph = CSRGraph::from_metis_graph_str(examples::MANUAL_3A).unwrap();
+            // Copy from Figure 3 (b) in the manual
+            let ans = CSRGraph {
+                column_indices: vec![
+                    1, 5, 0, 2, 6, 1, 3, 7, 2, 4, 8, 3, 9, 0, 6, 10, 1, 5, 7, 11, 2, 6, 8, 12, 3,
+                    7, 9, 13, 4, 8, 14, 5, 11, 6, 10, 12, 7, 11, 13, 8, 12, 14, 9, 13,
+                ],
+                num_elements_in_row_cumsum: vec![
+                    0, 2, 5, 8, 11, 13, 16, 20, 24, 28, 31, 33, 36, 39, 42, 44,
+                ],
+            };
+            assert_eq!(graph, ans);
+        }
     }
 }
