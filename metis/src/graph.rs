@@ -17,7 +17,7 @@ impl FromMetisGraphFormat for UndirectedGraph {
         let mut edges = Vec::with_capacity(header.num_edges);
         for line in lines {
             let line = line?;
-            let from_index = line.position;
+            let from_index = line.from_index;
             for to_index in line.vertices {
                 if from_index < to_index {
                     edges.push((from_index, to_index));

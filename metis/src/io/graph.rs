@@ -170,6 +170,7 @@ pub enum GraphFileError {
     IO(#[from] std::io::Error),
 }
 
+/// Graph file format specification in the header
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Format {
     pub has_vertex_size: bool,
@@ -248,9 +249,11 @@ impl FromStr for Header {
     }
 }
 
+/// Parsed line in METIS graph format
 #[derive(Debug)]
 pub struct Line {
-    pub position: i32,
+    /// Corresponding vertex index
+    pub from_index: i32,
     /// `s` in manual
     /// None if Header.has_vertex_size is false
     pub vertex_size: Option<i32>,
@@ -265,7 +268,7 @@ pub struct Line {
 }
 
 impl Line {
-    pub fn parse(header: &Header, position: i32, line: &str) -> Result<Self, LineError> {
+    pub fn parse(header: &Header, from_index: i32, line: &str) -> Result<Self, LineError> {
         let mut nums = line.trim().split_whitespace();
         let vertex_size = if header.fmt.has_vertex_size {
             let s = nums.next().ok_or(LineError::VertexSizeMissing)?;
@@ -307,7 +310,7 @@ impl Line {
             }
         }
         Ok(Self {
-            position,
+            from_index,
             vertex_size,
             vertex_weights,
             vertices,
@@ -392,7 +395,7 @@ mod tests {
         fn parse_default() {
             let header = Header::from_str("100 100").unwrap();
             let line = Line::parse(&header, 3, "1 10 30").unwrap();
-            assert_eq!(line.position, 3);
+            assert_eq!(line.from_index, 3);
             assert!(line.vertex_size.is_none());
             assert!(line.vertex_weights.is_none());
             assert!(line.edge_weights.is_none());
@@ -400,7 +403,7 @@ mod tests {
 
             // multi-space
             let line = Line::parse(&header, 3, "1  10 	 30").unwrap();
-            assert_eq!(line.position, 3);
+            assert_eq!(line.from_index, 3);
             assert!(line.vertex_size.is_none());
             assert!(line.vertex_weights.is_none());
             assert!(line.edge_weights.is_none());
@@ -411,7 +414,7 @@ mod tests {
         fn parse_edge_weight() {
             let header = Header::from_str("100 100 001").unwrap();
             let line = Line::parse(&header, 3, "1 12.34 10 5678 30 -999").unwrap();
-            assert_eq!(line.position, 3);
+            assert_eq!(line.from_index, 3);
             assert!(line.vertex_size.is_none());
             assert!(line.vertex_weights.is_none());
             assert_eq!(line.vertices, vec![1, 10, 30]);
@@ -422,7 +425,7 @@ mod tests {
         fn parse_vertex_weight() {
             let header = Header::from_str("100 100 010 3").unwrap();
             let line = Line::parse(&header, 3, "0.1 -3.0 10 1 10 30").unwrap();
-            assert_eq!(line.position, 3);
+            assert_eq!(line.from_index, 3);
             assert!(line.vertex_size.is_none());
             assert!(line.edge_weights.is_none());
             assert_eq!(line.vertices, vec![1, 10, 30]);
