@@ -1,6 +1,11 @@
 //! I/O for METIS Graph formats
 
-use std::{path::*, str::FromStr};
+use std::{
+    fs,
+    io::{self, BufRead},
+    path::*,
+    str::FromStr,
+};
 
 /// Example graphs
 pub mod examples {
@@ -87,8 +92,10 @@ pub trait FromMetisGraphFormat: Sized {
     }
 
     /// Read METIS graph file
-    fn from_metis_graph(_path: impl AsRef<Path>) -> Result<Self, GraphFileError> {
-        todo!()
+    fn from_metis_graph(path: impl AsRef<Path>) -> Result<Self, GraphFileError> {
+        let mut f = fs::File::open(path.as_ref())?;
+        let buf = io::BufReader::new(&mut f);
+        Self::from_metis_graph_lines(buf.lines().map(|line| line.unwrap()))
     }
 
     // common default implementations
@@ -158,6 +165,9 @@ pub enum GraphFileError {
 
     #[error("Edge size mismatch: actual({actual}) != header({header})")]
     EdgeSizeMissmatch { actual: usize, header: usize },
+
+    #[error(transparent)]
+    IO(#[from] std::io::Error),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
