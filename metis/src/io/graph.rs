@@ -1,7 +1,122 @@
-//! I/O for METIS file formats
+//! I/O for METIS Graph formats
 
-use std::str::FromStr;
+use std::{
+    fs,
+    io::{self, BufRead},
+    path::*,
+    str::FromStr,
+};
 
+/// Example graphs
+pub mod examples {
+    /// graph in Figure 2 (a) of the manual
+    pub const MANUAL_2A: &str = r#"
+        7 11
+        5 3 2
+        1 3 4
+        5 4 2 1
+        2 3 6 7
+        1 3 6
+        5 4 7
+        6 4
+    "#;
+
+    /// graph in Figure 2 (b) of the manual
+    pub const MANUAL_2B: &str = r#"
+        7 11 001
+        5 1 3 2 2 1
+        1 1 3 2 4 1
+        5 3 4 2 2 2 1 2
+        2 1 3 2 6 2 7 5
+        1 1 3 3 6 2
+        5 2 4 2 7 6
+        6 6 4 5
+    "#;
+
+    /// graph in Figure 2 (c) of the manual
+    pub const MANUAL_2C: &str = r#"
+        7 11 011
+        4 5 1 3 2 2 1
+        2 1 1 3 2 4 1
+        5 5 3 4 2 2 2 1 2
+        3 2 1 3 2 6 2 7 5
+        1 1 1 3 3 6 2
+        6 5 2 4 2 7 6
+        2 6 6 4 5
+    "#;
+
+    /// graph in Figure 2 (d) of the manual
+    pub const MANUAL_2D: &str = r#"
+        7 11 010 3
+        1 2 0 5 3 2
+        0 2 2 1 3 4
+        4 1 1 5 4 2 1
+        2 2 3 2 3 6 7
+        1 1 1 1 3 6
+        2 2 1 5 4 7
+        1 2 1 6 4
+    "#;
+
+    /// graph in Figure 3 (a) of the manual
+    pub const MANUAL_3A: &str = r#"
+        15 22
+        1 5
+        0 2 6
+        1 3 7
+        2 4 8
+        3 9
+        0 6 10
+        1 5 7 11
+        2 6 8 12
+        3 7 9 13
+        4 8 14
+        5 11
+        6 10 12
+        7 11 13
+        8 12 14
+        9 13
+    "#;
+}
+
+/// Constructable from METIS Graph format
+pub trait FromMetisGraphFormat: Sized {
+    fn from_metis_graph_iter(
+        header: &Header,
+        lines: impl Iterator<Item = Result<Line, LineError>>,
+    ) -> Result<Self, GraphFileError>;
+
+    /// Read METIS graph file as a string (assumes to be small)
+    fn from_metis_graph_str(input: &str) -> Result<Self, GraphFileError> {
+        // This default impl assumes `input` is not too large
+        Self::from_metis_graph_lines(input.trim().lines().map(|line| line.to_string()))
+    }
+
+    /// Read METIS graph file
+    fn from_metis_graph(path: impl AsRef<Path>) -> Result<Self, GraphFileError> {
+        let mut f = fs::File::open(path.as_ref())?;
+        let buf = io::BufReader::new(&mut f);
+        Self::from_metis_graph_lines(buf.lines().map(|line| line.unwrap()))
+    }
+
+    // common default implementations
+    #[doc(hidden)]
+    fn from_metis_graph_lines(
+        mut lines: impl Iterator<Item = String>,
+    ) -> Result<Self, GraphFileError> {
+        let header = Header::from_str(
+            &lines
+                .next()
+                .ok_or(GraphFileError::InvalidHeader(HeaderError::Empty))?,
+        )?;
+        let lines = lines.enumerate().map(|(from_index, line)| {
+            let from_index = from_index as i32 + 1;
+            Line::parse(&header, from_index, &line)
+        });
+        Self::from_metis_graph_iter(&header, lines)
+    }
+}
+
+/// Error for invalid line
 #[derive(Debug, PartialEq, Clone, thiserror::Error)]
 pub enum LineError {
     #[error("vertex size `s` in manual is missing")]
@@ -20,6 +135,7 @@ pub enum LineError {
     ParseFloatError(#[from] std::num::ParseFloatError),
 }
 
+/// Error for invalid header line
 #[derive(Debug, PartialEq, Clone, thiserror::Error)]
 pub enum HeaderError {
     #[error("Header is empty")]
@@ -41,23 +157,25 @@ pub enum GraphFileError {
     #[error(transparent)]
     InvalidHeader(#[from] HeaderError),
 
-    #[error("METIS graph file have invalid line at {line_position}: {error:?}")]
-    InvalidLine {
-        /// Error type
-        error: LineError,
-        /// Where the invalid line is found
-        line_position: usize,
-    },
+    #[error(transparent)]
+    InvalidLine(#[from] LineError),
+
+    #[error("Vertex size mismatch: actual({actual}) != header({header})")]
+    VertexSizeMissing { actual: usize, header: usize },
 
     #[error("Edge size mismatch: actual({actual}) != header({header})")]
     EdgeSizeMissmatch { actual: usize, header: usize },
+
+    #[error(transparent)]
+    IO(#[from] std::io::Error),
 }
 
+/// Graph file format specification in the header
 #[derive(Debug, Clone, Copy, PartialEq)]
-struct Format {
-    has_vertex_size: bool,
-    has_vertex_weight: bool,
-    has_edge_weight: bool,
+pub struct Format {
+    pub has_vertex_size: bool,
+    pub has_vertex_weight: bool,
+    pub has_edge_weight: bool,
 }
 
 impl FromStr for Format {
@@ -93,14 +211,14 @@ impl Default for Format {
 
 /// Header of METIS Graph file
 #[derive(Debug, Clone, PartialEq)]
-struct Header {
+pub struct Header {
     /// Number of vertices
-    num_vertices: usize,
+    pub num_vertices: usize,
     /// Number of edges
-    num_edges: usize,
-    fmt: Format,
+    pub num_edges: usize,
+    pub fmt: Format,
     /// Number of vertex weights associated with each vertex of the graph
-    num_weights: usize,
+    pub num_weights: usize,
 }
 
 impl FromStr for Header {
@@ -131,23 +249,26 @@ impl FromStr for Header {
     }
 }
 
+/// Parsed line in METIS graph format
 #[derive(Debug)]
-struct Line {
+pub struct Line {
+    /// Corresponding vertex index
+    pub from_index: i32,
     /// `s` in manual
     /// None if Header.has_vertex_size is false
-    vertex_size: Option<i32>,
+    pub vertex_size: Option<i32>,
     /// `w_1`, `w_2`, ... in manual
     /// None if Header.has_vertex_weight is false
-    vertex_weights: Option<Vec<f32>>,
+    pub vertex_weights: Option<Vec<f32>>,
     /// `v1`, ... in manual
-    vertices: Vec<i32>,
+    pub vertices: Vec<i32>,
     /// `e1`, ... in manual
     /// None if Header.has_edge_weight is false
-    edge_weights: Option<Vec<f32>>,
+    pub edge_weights: Option<Vec<f32>>,
 }
 
 impl Line {
-    fn parse(header: &Header, line: &str) -> Result<Self, LineError> {
+    pub fn parse(header: &Header, from_index: i32, line: &str) -> Result<Self, LineError> {
         let mut nums = line.trim().split_whitespace();
         let vertex_size = if header.fmt.has_vertex_size {
             let s = nums.next().ok_or(LineError::VertexSizeMissing)?;
@@ -189,59 +310,12 @@ impl Line {
             }
         }
         Ok(Self {
+            from_index,
             vertex_size,
             vertex_weights,
             vertices,
             edge_weights,
         })
-    }
-}
-
-/// uncompressed graph
-#[derive(Debug, Clone)]
-pub struct UndirectedGraph {
-    vertex_size: usize,
-    edges: Vec<(i32, i32)>,
-}
-
-impl UndirectedGraph {
-    fn from_lines(mut lines: impl Iterator<Item = String>) -> Result<Self, GraphFileError> {
-        let header = Header::from_str(
-            &lines
-                .next()
-                .ok_or(GraphFileError::InvalidHeader(HeaderError::Empty))?,
-        )?;
-        let mut edges = Vec::new();
-        for (from_index, line) in lines.enumerate() {
-            let from_index = from_index as i32 + 1;
-            let parsed =
-                Line::parse(&header, &line).map_err(|error| GraphFileError::InvalidLine {
-                    error,
-                    line_position: from_index as usize,
-                })?;
-            for &to_index in &parsed.vertices {
-                if from_index < to_index {
-                    edges.push((from_index, to_index));
-                }
-            }
-        }
-        if edges.len() != header.num_edges {
-            return Err(GraphFileError::EdgeSizeMissmatch {
-                actual: edges.len(),
-                header: header.num_edges,
-            });
-        }
-        Ok(UndirectedGraph {
-            vertex_size: header.num_vertices as usize,
-            edges,
-        })
-    }
-}
-
-impl FromStr for UndirectedGraph {
-    type Err = GraphFileError;
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        UndirectedGraph::from_lines(input.trim().lines().map(|line| line.to_string()))
     }
 }
 
@@ -320,14 +394,16 @@ mod tests {
         #[test]
         fn parse_default() {
             let header = Header::from_str("100 100").unwrap();
-            let line = Line::parse(&header, "1 10 30").unwrap();
+            let line = Line::parse(&header, 3, "1 10 30").unwrap();
+            assert_eq!(line.from_index, 3);
             assert!(line.vertex_size.is_none());
             assert!(line.vertex_weights.is_none());
             assert!(line.edge_weights.is_none());
             assert_eq!(line.vertices, vec![1, 10, 30]);
 
             // multi-space
-            let line = Line::parse(&header, "1  10 	 30").unwrap();
+            let line = Line::parse(&header, 3, "1  10 	 30").unwrap();
+            assert_eq!(line.from_index, 3);
             assert!(line.vertex_size.is_none());
             assert!(line.vertex_weights.is_none());
             assert!(line.edge_weights.is_none());
@@ -337,7 +413,8 @@ mod tests {
         #[test]
         fn parse_edge_weight() {
             let header = Header::from_str("100 100 001").unwrap();
-            let line = Line::parse(&header, "1 12.34 10 5678 30 -999").unwrap();
+            let line = Line::parse(&header, 3, "1 12.34 10 5678 30 -999").unwrap();
+            assert_eq!(line.from_index, 3);
             assert!(line.vertex_size.is_none());
             assert!(line.vertex_weights.is_none());
             assert_eq!(line.vertices, vec![1, 10, 30]);
@@ -347,7 +424,8 @@ mod tests {
         #[test]
         fn parse_vertex_weight() {
             let header = Header::from_str("100 100 010 3").unwrap();
-            let line = Line::parse(&header, "0.1 -3.0 10 1 10 30").unwrap();
+            let line = Line::parse(&header, 3, "0.1 -3.0 10 1 10 30").unwrap();
+            assert_eq!(line.from_index, 3);
             assert!(line.vertex_size.is_none());
             assert!(line.edge_weights.is_none());
             assert_eq!(line.vertices, vec![1, 10, 30]);
@@ -357,7 +435,7 @@ mod tests {
         #[test]
         fn vertex_out_of_range() {
             let header = Header::from_str("10 20").unwrap(); // num_vertices = 10
-            let result = Line::parse(&header, "100 200"); // index = 100 is too large
+            let result = Line::parse(&header, 3, "100 200"); // index = 100 is too large
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -367,69 +445,5 @@ mod tests {
                 }
             );
         }
-    }
-
-    #[test]
-    fn unweighted_graph() {
-        // graph in Figure 2.(a)
-        let input = r#"
-            7 11
-            5 3 2
-            1 3 4
-            5 4 2 1
-            2 3 6 7
-            1 3 6
-            5 4 7
-            6 4
-        "#;
-        let _graph = UndirectedGraph::from_str(input).unwrap();
-    }
-
-    #[test]
-    fn weighted_graph_weights_on_edges() {
-        // graph in Figure 2.(b)
-        let input = r#"
-            7 11 001
-            5 1 3 2 2 1
-            1 1 3 2 4 1
-            5 3 4 2 2 2 1 2
-            2 1 3 2 6 2 7 5
-            1 1 3 3 6 2
-            5 2 4 2 7 6
-            6 6 4 5
-        "#;
-        let _graph = UndirectedGraph::from_str(input).unwrap();
-    }
-
-    #[test]
-    fn weighted_graph_weights_both_on_vertices_and_edges() {
-        // graph in Figure 2.(c)
-        let input = r#"
-            7 11 011
-            4 5 1 3 2 2 1
-            2 1 1 3 2 4 1
-            5 5 3 4 2 2 2 1 2
-            3 2 1 3 2 6 2 7 5
-            1 1 1 3 3 6 2
-            6 5 2 4 2 7 6
-            2 6 6 4 5
-        "#;
-        let _graph = UndirectedGraph::from_str(input).unwrap();
-    }
-
-    #[test]
-    fn multi_constraint_graph() {
-        // graph in Figure 2.(d)
-        let input = r#"
-            7 11 010 3
-            1 2 0 5 3 2
-            0 2 2 1 3 4
-            4 1 1 5 4 2 1
-            2 2 3 2 3 6 7
-            1 1 1 1 3 6
-            2 2 1 5 4 7
-            1 2 1 6 4
-        "#;
-        let _graph = UndirectedGraph::from_str(input).unwrap();
     }
 }
