@@ -80,6 +80,9 @@ pub enum GraphFileError {
     #[error(transparent)]
     InvalidLine(#[from] LineError),
 
+    #[error("Vertex size mismatch: actual({actual}) != header({header})")]
+    VertexSizeMissing { actual: usize, header: usize },
+
     #[error("Edge size mismatch: actual({actual}) != header({header})")]
     EdgeSizeMissmatch { actual: usize, header: usize },
 }
