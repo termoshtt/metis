@@ -40,7 +40,7 @@ impl FromMetisGraphFormat for UndirectedGraph {
 }
 
 /// Compressed sparse row (CSR) format for general (non-symmetric) graph matrix
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CSRGraph {
     /// `adjncy` in METIS manual
     column_indices: Vec<i32>,
@@ -95,103 +95,37 @@ mod tests {
 
     #[test]
     fn unweighted_graph() {
-        // graph in Figure 2.(a)
-        let input = r#"
-            7 11
-            5 3 2
-            1 3 4
-            5 4 2 1
-            2 3 6 7
-            1 3 6
-            5 4 7
-            6 4
-        "#;
-        let _graph = UndirectedGraph::from_metis_graph_str(input).unwrap();
+        let _graph = UndirectedGraph::from_metis_graph_str(examples::MANUAL_2A).unwrap();
     }
 
     #[test]
     fn weighted_graph_weights_on_edges() {
-        // graph in Figure 2.(b)
-        let input = r#"
-            7 11 001
-            5 1 3 2 2 1
-            1 1 3 2 4 1
-            5 3 4 2 2 2 1 2
-            2 1 3 2 6 2 7 5
-            1 1 3 3 6 2
-            5 2 4 2 7 6
-            6 6 4 5
-        "#;
-        let _graph = UndirectedGraph::from_metis_graph_str(input).unwrap();
+        let _graph = UndirectedGraph::from_metis_graph_str(examples::MANUAL_2B).unwrap();
     }
 
     #[test]
     fn weighted_graph_weights_both_on_vertices_and_edges() {
-        // graph in Figure 2.(c)
-        let input = r#"
-            7 11 011
-            4 5 1 3 2 2 1
-            2 1 1 3 2 4 1
-            5 5 3 4 2 2 2 1 2
-            3 2 1 3 2 6 2 7 5
-            1 1 1 3 3 6 2
-            6 5 2 4 2 7 6
-            2 6 6 4 5
-        "#;
-        let _graph = UndirectedGraph::from_metis_graph_str(input).unwrap();
+        let _graph = UndirectedGraph::from_metis_graph_str(examples::MANUAL_2C).unwrap();
     }
 
     #[test]
     fn multi_constraint_graph() {
-        // graph in Figure 2.(d)
-        let input = r#"
-            7 11 010 3
-            1 2 0 5 3 2
-            0 2 2 1 3 4
-            4 1 1 5 4 2 1
-            2 2 3 2 3 6 7
-            1 1 1 1 3 6
-            2 2 1 5 4 7
-            1 2 1 6 4
-        "#;
-        let _graph = UndirectedGraph::from_metis_graph_str(input).unwrap();
+        let _graph = UndirectedGraph::from_metis_graph_str(examples::MANUAL_2D).unwrap();
     }
 
     #[test]
     fn grid() {
-        // graph in Figure 3.(a)
-        //
-        // #vertices = 15
-        // #edges = 22
-        let input = r#"
-            15 22
-            1 5
-            0 2 6
-            1 3 7
-            2 4 8
-            3 9
-            0 6 10
-            1 5 7 11
-            2 6 8 12
-            3 7 9 13
-            4 8 14
-            5 11
-            6 10 12
-            7 11 13
-            8 12 14
-            9 13
-        "#;
-        let graph = CSRGraph::from_metis_graph_str(input).unwrap();
-        assert_eq!(
-            graph.column_indices,
-            vec![
+        let graph = CSRGraph::from_metis_graph_str(examples::MANUAL_3A).unwrap();
+        // Copy from Figure 3 (b) in the manual
+        let ans = CSRGraph {
+            column_indices: vec![
                 1, 5, 0, 2, 6, 1, 3, 7, 2, 4, 8, 3, 9, 0, 6, 10, 1, 5, 7, 11, 2, 6, 8, 12, 3, 7, 9,
-                13, 4, 8, 14, 5, 11, 6, 10, 12, 7, 11, 13, 8, 12, 14, 9, 13
-            ]
-        );
-        assert_eq!(
-            graph.num_elements_in_row_cumsum,
-            vec![0, 2, 5, 8, 11, 13, 16, 20, 24, 28, 31, 33, 36, 39, 42, 44]
-        );
+                13, 4, 8, 14, 5, 11, 6, 10, 12, 7, 11, 13, 8, 12, 14, 9, 13,
+            ],
+            num_elements_in_row_cumsum: vec![
+                0, 2, 5, 8, 11, 13, 16, 20, 24, 28, 31, 33, 36, 39, 42, 44,
+            ],
+        };
+        assert_eq!(graph, ans);
     }
 }

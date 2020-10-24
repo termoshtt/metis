@@ -2,6 +2,77 @@
 
 use std::{path::*, str::FromStr};
 
+/// Example graphs
+pub mod examples {
+    /// graph in Figure 2 (a) of the manual
+    pub const MANUAL_2A: &str = r#"
+        7 11
+        5 3 2
+        1 3 4
+        5 4 2 1
+        2 3 6 7
+        1 3 6
+        5 4 7
+        6 4
+    "#;
+
+    /// graph in Figure 2 (b) of the manual
+    pub const MANUAL_2B: &str = r#"
+        7 11 001
+        5 1 3 2 2 1
+        1 1 3 2 4 1
+        5 3 4 2 2 2 1 2
+        2 1 3 2 6 2 7 5
+        1 1 3 3 6 2
+        5 2 4 2 7 6
+        6 6 4 5
+    "#;
+
+    /// graph in Figure 2 (c) of the manual
+    pub const MANUAL_2C: &str = r#"
+        7 11 011
+        4 5 1 3 2 2 1
+        2 1 1 3 2 4 1
+        5 5 3 4 2 2 2 1 2
+        3 2 1 3 2 6 2 7 5
+        1 1 1 3 3 6 2
+        6 5 2 4 2 7 6
+        2 6 6 4 5
+    "#;
+
+    /// graph in Figure 2 (d) of the manual
+    pub const MANUAL_2D: &str = r#"
+        7 11 010 3
+        1 2 0 5 3 2
+        0 2 2 1 3 4
+        4 1 1 5 4 2 1
+        2 2 3 2 3 6 7
+        1 1 1 1 3 6
+        2 2 1 5 4 7
+        1 2 1 6 4
+    "#;
+
+    /// graph in Figure 3 (a) of the manual
+    pub const MANUAL_3A: &str = r#"
+        15 22
+        1 5
+        0 2 6
+        1 3 7
+        2 4 8
+        3 9
+        0 6 10
+        1 5 7 11
+        2 6 8 12
+        3 7 9 13
+        4 8 14
+        5 11
+        6 10 12
+        7 11 13
+        8 12 14
+        9 13
+    "#;
+}
+
 /// Constructable from METIS Graph format
 pub trait FromMetisGraphFormat: Sized {
     fn from_metis_graph_iter(
@@ -38,6 +109,7 @@ pub trait FromMetisGraphFormat: Sized {
     }
 }
 
+/// Error for invalid line
 #[derive(Debug, PartialEq, Clone, thiserror::Error)]
 pub enum LineError {
     #[error("vertex size `s` in manual is missing")]
@@ -56,6 +128,7 @@ pub enum LineError {
     ParseFloatError(#[from] std::num::ParseFloatError),
 }
 
+/// Error for invalid header line
 #[derive(Debug, PartialEq, Clone, thiserror::Error)]
 pub enum HeaderError {
     #[error("Header is empty")]
