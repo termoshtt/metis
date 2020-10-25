@@ -1,6 +1,7 @@
 //! Graph structures
 
-use crate::io::graph::*;
+use crate::{error::*, io::graph::*};
+use std::{mem::MaybeUninit, ptr::null_mut};
 
 /// uncompressed graph
 #[derive(Debug, Clone)]
@@ -12,8 +13,8 @@ pub struct UndirectedGraph {
 impl FromMetisGraphFormat for UndirectedGraph {
     fn from_metis_graph_iter(
         header: &Header,
-        lines: impl Iterator<Item = Result<Line, LineError>>,
-    ) -> Result<Self, GraphFileError> {
+        lines: impl Iterator<Item = std::result::Result<Line, LineError>>,
+    ) -> std::result::Result<Self, GraphFileError> {
         let mut edges = Vec::with_capacity(header.num_edges);
         for line in lines {
             let line = line?;
@@ -49,20 +50,50 @@ pub struct CSRGraph {
 }
 
 impl CSRGraph {
-    fn new(header: &Header) -> Self {
-        CSRGraph {
-            column_indices: Vec::with_capacity(2 * header.num_edges),
-            num_elements_in_row_cumsum: Vec::with_capacity(header.num_vertices + 1),
+    pub fn num_vertices(&self) -> usize {
+        self.num_elements_in_row_cumsum.len() - 1
+    }
+
+    pub fn num_edges(&self) -> usize {
+        self.column_indices.len() / 2
+    }
+
+    pub fn part_kway(&mut self, num_partitions: i32) -> Result<(i32, Vec<i32>)> {
+        let num_vertices = self.num_vertices() as i32;
+        let num_weights = 1_i32;
+        let mut objval = MaybeUninit::uninit();
+        let mut part = Vec::with_capacity(self.num_vertices());
+        unsafe {
+            metis_sys::METIS_PartGraphKway(
+                &num_vertices as *const i32 as *mut i32,
+                &num_weights as *const i32 as *mut i32,
+                self.num_elements_in_row_cumsum.as_mut_ptr(),
+                self.column_indices.as_mut_ptr(),
+                null_mut(), // vwgt   = the weights of the vertices
+                null_mut(), // vsize  = the size of the vertices
+                null_mut(), // adjwgt = the weights of the edges
+                &num_partitions as *const i32 as *mut i32,
+                null_mut(), // tpwgts = The desired weights for each partition
+                null_mut(), // ubvec  = The allowed weights
+                null_mut(), // options
+                objval.as_mut_ptr(),
+                part.as_mut_ptr(),
+            )
         }
+        .check("METIS_PartGraphKway")?;
+        Ok((unsafe { objval.assume_init() }, part))
     }
 }
 
 impl FromMetisGraphFormat for CSRGraph {
     fn from_metis_graph_iter(
         header: &Header,
-        lines: impl Iterator<Item = Result<Line, LineError>>,
-    ) -> Result<Self, GraphFileError> {
-        let mut graph = Self::new(header);
+        lines: impl Iterator<Item = std::result::Result<Line, LineError>>,
+    ) -> std::result::Result<Self, GraphFileError> {
+        let mut graph = CSRGraph {
+            column_indices: Vec::with_capacity(2 * header.num_edges),
+            num_elements_in_row_cumsum: Vec::with_capacity(header.num_vertices + 1),
+        };
         let mut num_elements = 0;
         graph.num_elements_in_row_cumsum.push(num_elements);
         for line in lines {
@@ -73,15 +104,18 @@ impl FromMetisGraphFormat for CSRGraph {
             }
             graph.num_elements_in_row_cumsum.push(num_elements);
         }
-        if graph.num_elements_in_row_cumsum.len() != header.num_vertices + 1 {
+        if graph.num_vertices() != header.num_vertices {
             return Err(GraphFileError::VertexSizeMissing {
-                actual: graph.num_elements_in_row_cumsum.len() - 1,
+                actual: graph.num_vertices(),
                 header: header.num_vertices,
             });
         }
-        if graph.column_indices.len() != 2 * header.num_edges {
+        if graph.column_indices.len() % 2 != 0 {
+            return Err(GraphFileError::NonSymmetric);
+        }
+        if graph.num_edges() != header.num_edges {
             return Err(GraphFileError::EdgeSizeMissmatch {
-                actual: graph.column_indices.len() / 2,
+                actual: graph.num_edges(),
                 header: header.num_edges,
             });
         }
