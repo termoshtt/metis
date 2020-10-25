@@ -166,6 +166,9 @@ pub enum GraphFileError {
     #[error("Edge size mismatch: actual({actual}) != header({header})")]
     EdgeSizeMissmatch { actual: usize, header: usize },
 
+    #[error("METIS Graph format is assumed to be symmetric, but has odd number edges.")]
+    NonSymmetric,
+
     #[error(transparent)]
     IO(#[from] std::io::Error),
 }
